@@ -10,6 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
   tailwind.config = { corePlugins: { preflight: true }, theme: { extend: { fontFamily: {
     sans: ['Archivo','system-ui','sans-serif'], mono: ['"DM Mono"','ui-monospace','monospace'] } } } };
@@ -104,6 +105,44 @@
   .toast.on{opacity:1;}
   details>summary{cursor:pointer; list-style:none;}
   details>summary::-webkit-details-marker{display:none;}
+
+  /* --- open source bar --- */
+  .osbar{display:flex; flex-wrap:wrap; align-items:center; gap:16px; padding:15px 17px;
+    border:1px solid var(--line); border-radius:4px; background:var(--sunk);}
+  .ghlink{display:inline-flex; align-items:center; gap:7px; font-size:13.5px; text-decoration:none;}
+  .ghlink:hover{color:var(--signal);}
+  .ghlink svg{width:16px; height:16px; fill:currentColor;}
+
+  /* --- support / donate --- */
+  .net-tabs{position:relative; display:flex; flex-wrap:wrap; border-bottom:1px solid var(--line);}
+  .net-tab{padding:10px 15px; font-size:13.5px; color:var(--ink-2); background:none; border:none;
+    cursor:pointer; font-family:inherit; line-height:1.2;}
+  .net-tab:hover{color:var(--ink);}
+  .net-tab[aria-selected="true"]{color:var(--ink); font-weight:500;}
+  .net-tab span{display:block; font-size:10.5px; color:var(--ink-3); font-weight:400; margin-top:2px;}
+  .net-ind{position:absolute; bottom:-1px; left:0; height:2px; width:0; background:var(--signal);
+    transition:transform .3s cubic-bezier(.22,.7,.2,1), width .3s cubic-bezier(.22,.7,.2,1);}
+  .swap{transition:opacity .22s ease, transform .22s ease;}
+  .swap.out{opacity:0; transform:translateY(7px);}
+  .addr{font-family:"DM Mono",monospace; font-size:12.5px; word-break:break-all; line-height:1.65;
+    border-radius:3px; padding:2px 3px; margin:0 -3px;}
+  .addr.flash{animation:flash 1s ease;}
+  @keyframes flash{0%{background:var(--signal); color:var(--signal-ink);} 100%{background:transparent;}}
+  .qr-wrap{position:relative; width:158px; flex:none;}
+  .qr-glow{position:absolute; inset:-18px; border-radius:50%; pointer-events:none;
+    background:radial-gradient(circle, var(--signal-wash) 0%, transparent 68%); animation:breathe 5s ease-in-out infinite;}
+  @keyframes breathe{0%,100%{opacity:.45; transform:scale(.92);} 50%{opacity:1; transform:scale(1.06);}}
+  .qr-box{transition:opacity .2s ease; position:relative; background:#fff; border:1px solid var(--line); border-radius:4px;
+    padding:10px; display:flex; align-items:center; justify-content:center; min-height:158px;}
+  .qr-box img,.qr-box canvas{display:block; width:136px; height:136px;}
+  .reveal{opacity:0; transform:translateY(12px); transition:opacity .55s ease, transform .55s ease;}
+  .reveal.in{opacity:1; transform:none;}
+  .avatar{width:58px; height:58px; border-radius:7px; background:var(--signal); color:var(--signal-ink);
+    display:flex; align-items:center; justify-content:center; font-weight:700; font-size:21px; letter-spacing:-.04em; flex:none;}
+  .handle{display:inline-flex; align-items:center; gap:8px; padding:9px 11px; border:1px solid var(--line);
+    border-radius:3px; font-size:13px; text-decoration:none; background:var(--surface);}
+  .handle:hover{border-color:var(--signal); color:var(--signal);}
+  .handle svg{width:15px; height:15px; fill:currentColor; flex:none;}
   @media (prefers-reduced-motion: reduce){ *{animation:none !important; transition:none !important;} }
   @media (max-width:760px){ .num-xl{font-size:44px;} }
 </style>
@@ -119,6 +158,7 @@
       <div class="mono hidden sm:flex items-center gap-2" style="font-size:12px; color:var(--ink-2);">
         <span>visibility</span><span id="hdrScore" style="color:var(--ink); font-weight:500;">—</span>
       </div>
+      <a class="ghlink" href="https://github.com/kartikeyasaran/Cited" target="_blank" rel="noopener" aria-label="Source on GitHub"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg><span class="hidden sm:inline">Source</span></a>
       <button class="btn btn-sm" id="themeBtn" aria-label="Switch colour theme">Light</button>
     </div>
   </div>
@@ -142,7 +182,7 @@
           <a href="#trust" class="btn">How keys are handled</a>
         </div>
         <p class="mono" style="margin-top:18px; font-size:11.5px; color:var(--ink-3);">
-          no account · no server · works with zero API keys in paste mode
+          no account · no server · zero API keys in paste mode · MIT licensed, source on GitHub
         </p>
       </div>
       <div class="lg:col-span-6">
@@ -334,6 +374,20 @@ cheapest billing platform that handles metered pricing"></textarea>
       <h2 style="font-size:24px;">Fair question: why would you trust an unknown page with an API key?</h2>
       <p class="lead" style="margin-top:8px;">You shouldn't, on trust alone. So the answer here is that you don't have to take anyone's word for it — six ways down, in order of how paranoid you want to be.</p>
 
+      <div class="osbar" style="margin-top:20px;">
+        <div style="flex:1; min-width:240px;">
+          <div style="font-weight:600; font-size:14px;">Every line of this page is public.</div>
+          <div style="font-size:13px; color:var(--ink-2); margin-top:4px;">
+            MIT licensed, built in the open, deployed straight from the repo — so what you are running here is traceable to a commit you can read.
+          </div>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <a class="btn btn-sm" target="_blank" rel="noopener" href="https://github.com/kartikeyasaran/Cited"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>&nbsp;Read the source</a>
+          <a class="btn btn-sm" target="_blank" rel="noopener" href="https://github.com/kartikeyasaran/Cited/blob/main/index.html">Audit this file</a>
+          <a class="btn btn-sm" target="_blank" rel="noopener" href="https://github.com/kartikeyasaran/Cited/issues">Report something</a>
+        </div>
+      </div>
+
       <div class="grid md:grid-cols-3 gap-5" style="margin-top:24px;">
         <div class="panel" style="padding:18px;">
           <h3 style="font-size:15px;">Use no key at all</h3>
@@ -345,7 +399,7 @@ cheapest billing platform that handles metered pricing"></textarea>
         </div>
         <div class="panel" style="padding:18px;">
           <h3 style="font-size:15px;">Read it in a minute</h3>
-          <p style="font-size:13.5px; color:var(--ink-2); margin-top:8px;">View source and search for <code>fetch(</code>. There are four call sites, all named below. There is no bundler hiding them and no minified blob to squint at.</p>
+          <p style="font-size:13.5px; color:var(--ink-2); margin-top:8px;">The repo is public and the whole app is one unminified file. Search it for <code>fetch(</code> — four call sites, all named below, no bundler hiding them. Diff the commit against what your browser received.</p>
         </div>
         <div class="panel" style="padding:18px;">
           <h3 style="font-size:15px;">Let the browser enforce it</h3>
@@ -382,11 +436,102 @@ cheapest billing platform that handles metered pricing"></textarea>
     </div>
   </section>
 
+
+  <!-- SUPPORT -->
+  <section class="sec" id="support">
+    <div class="wrap">
+      <div class="sec-n">Free, and staying free</div>
+      <div class="grid lg:grid-cols-12 gap-10">
+        <div class="lg:col-span-7">
+          <h2 style="font-size:24px;">Help me build more free tools</h2>
+          <p class="lead" style="margin-top:8px;">
+            AEO trackers charge $99 a month for a version of this. Cited is free, open source, and has no paywall coming —
+            no upsell screen, no seat limits, no "contact sales" tier. If it saved you a subscription, a tip funds the next tool.
+            If it didn't, use it anyway and tell someone it exists.
+          </p>
+
+          <div class="panel reveal" style="padding:0; margin-top:22px;" id="donateCard">
+            <div class="net-tabs" id="netTabs" role="tablist" aria-label="Choose a network"><div class="net-ind" id="netInd"></div></div>
+            <div style="padding:18px;">
+              <div class="flex flex-wrap gap-5 items-start">
+                <div class="qr-wrap">
+                  <div class="qr-glow"></div>
+                  <div class="qr-box" id="qrBox"></div>
+                  <div class="mono" style="font-size:10.5px; color:var(--ink-3); text-align:center; margin-top:7px;" id="qrCaption">scan to send</div>
+                </div>
+                <div style="flex:1; min-width:250px;">
+                  <div class="swap" id="netPane">
+                    <div class="mono" style="font-size:11px; color:var(--ink-3);" id="netChain">Tron</div>
+                    <div class="addr" id="netAddr" style="margin-top:8px;"></div>
+                    <div style="font-size:12.5px; color:var(--ink-2); margin-top:10px;" id="netNote"></div>
+                  </div>
+                  <div class="flex flex-wrap gap-2" style="margin-top:14px;">
+                    <button class="btn btn-go btn-sm" id="copyAddr">Copy address</button>
+                    <button class="btn btn-sm" id="copyAll">Copy all four</button>
+                  </div>
+                  <div style="font-size:12px; color:var(--ink-3); margin-top:12px; line-height:1.5;">
+                    Check the network matches before you send. Tokens sent on the wrong chain cannot be recovered by anyone, including me.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid sm:grid-cols-3 gap-3" style="margin-top:16px;">
+            <div class="sunk reveal" style="padding:13px;">
+              <div style="font-size:13.5px; font-weight:500;">Star the repo</div>
+              <div style="font-size:12.5px; color:var(--ink-2); margin-top:4px;">Costs nothing, and it is how the next person finds this.</div>
+            </div>
+            <div class="sunk reveal" style="padding:13px;">
+              <div style="font-size:13.5px; font-weight:500;">Open an issue</div>
+              <div style="font-size:12.5px; color:var(--ink-2); margin-top:4px;">A bad score you disagree with is the most useful bug report there is.</div>
+            </div>
+            <div class="sunk reveal" style="padding:13px;">
+              <div style="font-size:13.5px; font-weight:500;">Send it to a founder</div>
+              <div style="font-size:12.5px; color:var(--ink-2); margin-top:4px;">Most teams have not checked once. The grid makes the point faster than any thread.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="lg:col-span-5">
+          <div class="panel reveal" style="padding:20px;">
+            <div class="flex items-center gap-4">
+              <div class="avatar">KS</div>
+              <div>
+                <div style="font-weight:600; font-size:17px; letter-spacing:-.02em;">Kartikeya Saran</div>
+                <div class="mono" style="font-size:11.5px; color:var(--ink-3); margin-top:3px;">built Cited · ships in the open</div>
+              </div>
+            </div>
+            <p style="font-size:13.5px; color:var(--ink-2); margin-top:16px;">
+              I build small, single-file tools that run without a backend — the kind you can read end to end, host yourself,
+              and keep using after the company behind them loses interest. Cited is the first one. There will be more.
+            </p>
+            <div class="grid gap-2" style="margin-top:16px;">
+              <a class="handle" href="https://github.com/kartikeyasaran" target="_blank" rel="noopener"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg><span>github.com/kartikeyasaran</span></a>
+              <a class="handle" href="https://x.com/coderkartikey" target="_blank" rel="noopener"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M12.6 0h2.45l-5.35 6.12L16 16h-4.93l-3.86-5.05L2.79 16H.34l5.72-6.54L0 0h5.06l3.49 4.61L12.6 0Zm-.86 14.55h1.36L4.32 1.37H2.87l8.87 13.18Z"/></svg><span>@coderkartikey</span></a>
+              <a class="handle" href="https://github.com/kartikeyasaran/Cited" target="_blank" rel="noopener"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg><span>kartikeyasaran/Cited</span></a>
+            </div>
+            <div style="border-top:1px solid var(--line); margin-top:18px; padding-top:14px;">
+              <div class="mono" style="font-size:11px; color:var(--ink-3);">building next</div>
+              <div style="font-size:13px; color:var(--ink-2); margin-top:6px;">
+                Weekly snapshots with week-over-week diffing, prompt packs by category, and a competitor grid so you can run the check on someone else's brand.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <footer class="sec" style="padding-bottom:64px;">
     <div class="wrap grid md:grid-cols-3 gap-6">
       <div>
         <div style="font-weight:600;">Cited</div>
         <p style="font-size:13px; color:var(--ink-2); margin-top:8px;">A diagnostic, not an oracle. Model answers vary run to run and by account — treat a single square as a sample, and re-run the same prompts weekly to see a trend rather than a verdict.</p>
+        <p style="font-size:13px; color:var(--ink-2); margin-top:10px;">
+          MIT licensed. Built by <a href="https://x.com/coderkartikey" target="_blank" rel="noopener">Kartikeya Saran</a> ·
+          <a href="https://github.com/kartikeyasaran/Cited" target="_blank" rel="noopener">source on GitHub</a>
+        </p>
       </div>
       <div>
         <div style="font-weight:600;">Built on</div>
@@ -452,6 +597,7 @@ const store = {
     const next = document.documentElement.getAttribute('data-theme')==='light' ? 'dark' : 'light';
     document.documentElement.setAttribute('data-theme', next); store.set('cited.theme', next); sync();
     if(window.__viz) window.__viz.recolor();
+    if(window.__donate) window.__donate.refresh();
   });
 })();
 
@@ -1110,6 +1256,98 @@ $('#demoBtn').addEventListener('click', ()=>{
   }
   build(); sync(); resize(); loop();
   window.__viz = { sync:()=>{ build(); sync(); }, recolor };
+})();
+
+
+/* ---------- support: networks, QR, reveal ---------- */
+(function donate(){
+  const CHAINS = [
+    { id:'trc20', label:'TRC20', chain:'Tron (TRC20)', addr:'TLBdSyRD4L7ygE87kCM8hHSPCdBUDz8iFE',
+      note:'Cheapest fees of the four. Best for USDT if you already hold it on Tron.' },
+    { id:'bep20', label:'BEP20', chain:'BNB Smart Chain (BEP20)', addr:'0x5A27eFAdfc65D7f648499041b0b094193C927a59',
+      note:'Low fees, EVM address. Same address as the Ethereum one below — the chain you pick is what matters.' },
+    { id:'erc20', label:'ERC20', chain:'Ethereum (ERC20)', addr:'0x5A27eFAdfc65D7f648499041b0b094193C927a59',
+      note:'Highest gas of the four. Fine for larger amounts, expensive for a coffee.' },
+    { id:'sol', label:'Solana', chain:'Solana (SPL)', addr:'76s5GDVUvMkf83BcTj7jFRkQKy8UAKWGbwUqq1rYH3pn',
+      note:'Fast and near-free. Send SOL or SPL tokens like USDC to this address.' }
+  ];
+  const tabs = document.getElementById('netTabs');
+  if(!tabs) return;
+  const ind = document.getElementById('netInd');
+  const pane = document.getElementById('netPane');
+  const qrBox = document.getElementById('qrBox');
+  let active = 0;
+
+  CHAINS.forEach((c,i)=>{
+    const b = document.createElement('button');
+    b.className = 'net-tab'; b.type='button'; b.setAttribute('role','tab');
+    b.setAttribute('aria-selected', i===0 ? 'true':'false');
+    b.innerHTML = c.label + '<span>' + c.chain.replace(/\s*\(.*\)/,'') + '</span>';
+    b.addEventListener('click', ()=>select(i));
+    tabs.appendChild(b);
+  });
+  const btns = Array.prototype.slice.call(tabs.querySelectorAll('.net-tab'));
+
+  function moveIndicator(){
+    const b = btns[active]; if(!b) return;
+    ind.style.width = b.offsetWidth + 'px';
+    ind.style.transform = 'translateX(' + b.offsetLeft + 'px)';
+  }
+  function drawQR(){
+    const c = CHAINS[active];
+    qrBox.innerHTML = '';
+    if(typeof QRCode === 'undefined'){
+      qrBox.innerHTML = '<div class="mono" style="font-size:10.5px; color:#555; text-align:center; padding:12px;">QR unavailable offline — copy the address instead</div>';
+      return;
+    }
+    try{
+      new QRCode(qrBox, { text:c.addr, width:272, height:272,
+        colorDark:'#111111', colorLight:'#ffffff', correctLevel: QRCode.CorrectLevel.M });
+    }catch(e){ qrBox.textContent = 'QR unavailable'; }
+  }
+  function paint(){
+    const c = CHAINS[active];
+    document.getElementById('netChain').textContent = c.chain;
+    document.getElementById('netAddr').textContent = c.addr;
+    document.getElementById('netNote').textContent = c.note;
+    document.getElementById('qrCaption').textContent = 'scan to send on ' + c.label;
+    drawQR();
+  }
+  function select(i){
+    if(i===active) return;
+    active = i;
+    btns.forEach((b,n)=> b.setAttribute('aria-selected', n===i ? 'true':'false'));
+    moveIndicator();
+    pane.classList.add('out'); qrBox.style.opacity = '0';
+    setTimeout(()=>{ paint(); pane.classList.remove('out'); qrBox.style.opacity=''; }, 190);
+  }
+  document.getElementById('copyAddr').addEventListener('click', function(){
+    const c = CHAINS[active], el = document.getElementById('netAddr'), b = this;
+    copyText(c.addr);
+    el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+    const old = b.textContent; b.textContent = 'Copied ' + c.label;
+    setTimeout(()=>{ b.textContent = old; }, 1500);
+  });
+  document.getElementById('copyAll').addEventListener('click', ()=>{
+    copyText(CHAINS.map(c=> c.chain + '\n' + c.addr).join('\n\n'));
+  });
+
+  paint(); setTimeout(moveIndicator, 60);
+  window.addEventListener('resize', moveIndicator);
+  window.__donate = { refresh: drawQR };
+
+  // one orchestrated reveal when the section comes into view
+  const items = Array.prototype.slice.call(document.querySelectorAll('#support .reveal'));
+  if('IntersectionObserver' in window){
+    const io = new IntersectionObserver(es=>{
+      es.forEach(e=>{ if(e.isIntersecting){
+        const i = items.indexOf(e.target);
+        setTimeout(()=> e.target.classList.add('in'), Math.max(0,i)*90);
+        io.unobserve(e.target);
+      }});
+    }, {threshold:.15});
+    items.forEach(el=>io.observe(el));
+  } else { items.forEach(el=>el.classList.add('in')); }
 })();
 
 /* ---------- boot ---------- */
