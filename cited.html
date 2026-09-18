@@ -1,0 +1,1126 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' blob: data:; connect-src 'self' https://api.openai.com https://api.perplexity.ai https://api.anthropic.com https://generativelanguage.googleapis.com; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob:; form-action 'none'; base-uri 'none'">
+<title>Cited — answer engine visibility check</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+  tailwind.config = { corePlugins: { preflight: true }, theme: { extend: { fontFamily: {
+    sans: ['Archivo','system-ui','sans-serif'], mono: ['"DM Mono"','ui-monospace','monospace'] } } } };
+</script>
+<style>
+  :root{
+    --paper:#EDF0EE; --surface:#FFFFFF; --sunk:#E3E8E5;
+    --ink:#132320; --ink-2:#4A5C57; --ink-3:#8A9A94;
+    --line:#D3DAD6; --line-2:#C0CAC5;
+    --signal:#0E7A62; --signal-ink:#FFFFFF; --signal-wash:rgba(14,122,98,.10);
+    --amber:#9A6B12; --miss:#B4453A;
+    --focus:#0E7A62;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#0E1513; --surface:#141C1A; --sunk:#101816;
+      --ink:#E7EEEB; --ink-2:#9FB1AB; --ink-3:#6B7C77;
+      --line:#223029; --line-2:#2E3F38;
+      --signal:#35C79E; --signal-ink:#07110E; --signal-wash:rgba(53,199,158,.12);
+      --amber:#D8A13C; --miss:#E0705F;
+      --focus:#35C79E;
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#0E1513; --surface:#141C1A; --sunk:#101816;
+    --ink:#E7EEEB; --ink-2:#9FB1AB; --ink-3:#6B7C77;
+    --line:#223029; --line-2:#2E3F38;
+    --signal:#35C79E; --signal-ink:#07110E; --signal-wash:rgba(53,199,158,.12);
+    --amber:#D8A13C; --miss:#E0705F;
+    --focus:#35C79E;
+  }
+  html,body{background:var(--paper); color:var(--ink);}
+  body{font-family:Archivo,system-ui,sans-serif; -webkit-font-smoothing:antialiased; font-size:15px; line-height:1.55;}
+  ::selection{background:var(--signal); color:var(--signal-ink);}
+  h1,h2,h3{letter-spacing:-.022em; font-weight:600; line-height:1.12;}
+  a{color:inherit; text-underline-offset:3px; text-decoration-thickness:1px;}
+  .wrap{max-width:1140px; margin:0 auto; padding:0 20px;}
+  .mono{font-family:"DM Mono",ui-monospace,monospace; font-variant-numeric:tabular-nums;}
+  .hair{border-color:var(--line);}
+  .panel{background:var(--surface); border:1px solid var(--line); border-radius:4px;}
+  .sunk{background:var(--sunk); border:1px solid var(--line); border-radius:4px;}
+  .sec{border-top:1px solid var(--line); padding:44px 0;}
+  .sec-n{font-family:"DM Mono",monospace; font-size:12px; color:var(--ink-3); margin-bottom:6px;}
+  .lead{color:var(--ink-2); max-width:62ch;}
+  label.f{display:block; font-size:12.5px; color:var(--ink-2); margin-bottom:5px;}
+  input.t, textarea.t, select.t{
+    width:100%; background:var(--surface); border:1px solid var(--line); border-radius:3px;
+    padding:9px 11px; color:var(--ink); font-size:14px; font-family:inherit; outline:none;}
+  input.t:focus, textarea.t:focus, select.t:focus{border-color:var(--focus); box-shadow:0 0 0 3px var(--signal-wash);}
+  textarea.t{font-family:"DM Mono",monospace; font-size:13px; line-height:1.6; resize:vertical;}
+  input.t::placeholder, textarea.t::placeholder{color:var(--ink-3);}
+  .btn{display:inline-flex; align-items:center; gap:7px; border:1px solid var(--line-2); background:var(--surface);
+    color:var(--ink); padding:8px 13px; border-radius:3px; font-size:13.5px; font-weight:500; cursor:pointer;}
+  .btn:hover{border-color:var(--ink-3);}
+  .btn:focus-visible, .cell:focus-visible, a:focus-visible{outline:2px solid var(--focus); outline-offset:2px;}
+  .btn[disabled]{opacity:.45; cursor:not-allowed;}
+  .btn-go{background:var(--signal); color:var(--signal-ink); border-color:var(--signal); font-weight:600;}
+  .btn-go:hover{filter:brightness(1.07); border-color:var(--signal);}
+  .btn-sm{padding:5px 9px; font-size:12px;}
+  .chip{display:inline-flex; align-items:center; gap:6px; border:1px solid var(--line); background:var(--sunk);
+    border-radius:3px; padding:4px 8px; font-size:12.5px; color:var(--ink-2);}
+  .chip b{font-weight:500; color:var(--ink);}
+  .tab{padding:7px 14px; border:1px solid var(--line); background:transparent; color:var(--ink-2); font-size:13.5px; cursor:pointer;}
+  .tab[aria-selected="true"]{background:var(--ink); color:var(--paper); border-color:var(--ink);}
+  .grid-wells{display:grid; gap:3px;}
+  .cell{border:1px solid var(--line); border-radius:3px; min-height:46px; background:var(--sunk);
+    cursor:pointer; position:relative; display:flex; align-items:center; justify-content:center;
+    font-family:"DM Mono",monospace; font-size:13px; color:var(--ink-3);}
+  .cell:hover{border-color:var(--ink-3);}
+  .cell.has{color:var(--ink);}
+  .cell .badge{position:absolute; top:3px; right:5px; font-size:9px; color:var(--ink-3);}
+  .rowhead{font-size:13px; color:var(--ink-2); padding-right:12px; display:flex; align-items:center; min-height:46px; line-height:1.25;}
+  .colhead{font-size:12px; color:var(--ink-2); text-align:center; padding-bottom:7px; line-height:1.2;}
+  .bar-track{height:7px; background:var(--sunk); border:1px solid var(--line); border-radius:2px; overflow:hidden;}
+  .bar-fill{height:100%; background:var(--signal);}
+  .drawer{position:fixed; inset:0; background:rgba(8,14,12,.5); display:none; z-index:60;}
+  .drawer[data-open="1"]{display:block;}
+  .drawer-body{position:absolute; right:0; top:0; bottom:0; width:min(640px,100%); background:var(--paper);
+    border-left:1px solid var(--line); overflow-y:auto;}
+  mark.me{background:var(--signal); color:var(--signal-ink); padding:0 2px; border-radius:2px;}
+  mark.them{background:transparent; color:var(--ink); border-bottom:2px solid var(--amber);}
+  .kv{display:flex; justify-content:space-between; gap:12px; padding:6px 0; border-bottom:1px dashed var(--line); font-size:13px;}
+  .log{max-height:180px; overflow:auto; font-family:"DM Mono",monospace; font-size:11.5px; color:var(--ink-2);}
+  .dot{width:7px; height:7px; border-radius:50%; display:inline-block;}
+  code, pre{font-family:"DM Mono",monospace;}
+  pre.code{background:var(--sunk); border:1px solid var(--line); border-radius:4px; padding:12px; font-size:12px;
+    overflow:auto; max-height:260px; line-height:1.55; color:var(--ink-2); white-space:pre;}
+  .num-xl{font-size:60px; font-weight:600; letter-spacing:-.04em; line-height:.9;}
+  #stage{width:100%; height:100%; display:block; touch-action:none;}
+  .toast{position:fixed; left:50%; transform:translateX(-50%); bottom:24px; background:var(--ink); color:var(--paper);
+    padding:9px 16px; border-radius:3px; font-size:13px; z-index:90; opacity:0; pointer-events:none; transition:opacity .18s;}
+  .toast.on{opacity:1;}
+  details>summary{cursor:pointer; list-style:none;}
+  details>summary::-webkit-details-marker{display:none;}
+  @media (prefers-reduced-motion: reduce){ *{animation:none !important; transition:none !important;} }
+  @media (max-width:760px){ .num-xl{font-size:44px;} }
+</style>
+</head>
+<body>
+<header style="border-bottom:1px solid var(--line); position:sticky; top:0; z-index:40; background:color-mix(in srgb, var(--paper) 88%, transparent); backdrop-filter:blur(8px);">
+  <div class="wrap flex items-center justify-between" style="height:56px;">
+    <div class="flex items-baseline gap-3">
+      <span style="font-weight:700; letter-spacing:-.04em; font-size:19px;">Cited</span>
+      <span class="hidden sm:inline" style="font-size:12.5px; color:var(--ink-3);">answer engine visibility check</span>
+    </div>
+    <div class="flex items-center gap-3">
+      <div class="mono hidden sm:flex items-center gap-2" style="font-size:12px; color:var(--ink-2);">
+        <span>visibility</span><span id="hdrScore" style="color:var(--ink); font-weight:500;">—</span>
+      </div>
+      <button class="btn btn-sm" id="themeBtn" aria-label="Switch colour theme">Light</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- HERO -->
+  <section class="wrap" style="padding:56px 20px 40px;">
+    <div class="grid lg:grid-cols-12 gap-10 items-center">
+      <div class="lg:col-span-6">
+        <h1 style="font-size:clamp(34px,5vw,54px); font-weight:700;">You can rank #1 and still not be in the answer.</h1>
+        <p class="lead" style="margin-top:18px; font-size:16.5px;">
+          Buyers ask an assistant before they ask Google. Ranking and citation have come apart — the pages a model
+          names are often nowhere near the organic top ten. This checks the only thing that matters now:
+          when someone asks ChatGPT, Claude, Perplexity or Gemini the question your buyer actually asks,
+          does your product get named, where in the list, and with a link back to you?
+        </p>
+        <div class="flex flex-wrap gap-2" style="margin-top:22px;">
+          <a href="#setup" class="btn btn-go">Start a check</a>
+          <button class="btn" id="demoBtn">Load a worked example</button>
+          <a href="#trust" class="btn">How keys are handled</a>
+        </div>
+        <p class="mono" style="margin-top:18px; font-size:11.5px; color:var(--ink-3);">
+          no account · no server · works with zero API keys in paste mode
+        </p>
+      </div>
+      <div class="lg:col-span-6">
+        <div class="panel" style="aspect-ratio:1/0.82; overflow:hidden; position:relative; background:var(--sunk);">
+          <canvas id="stage"></canvas>
+          <div class="mono" style="position:absolute; left:12px; bottom:10px; font-size:11px; color:var(--ink-3);">
+            centre = your brand · each ring = one engine · each point = one buyer prompt
+          </div>
+          <div class="mono" style="position:absolute; right:12px; top:10px; font-size:11px; color:var(--ink-3);">
+            <span id="vizCount">0</span> cited
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 1 SETUP -->
+  <section class="sec" id="setup">
+    <div class="wrap">
+      <div class="sec-n">Step 1</div>
+      <h2 style="font-size:24px;">Who the model should be naming</h2>
+      <p class="lead" style="margin-top:8px;">Aliases matter. Models write “Acme Billing”, “Acme.io” and “acme” in the same answer.</p>
+      <div class="grid md:grid-cols-12 gap-4" style="margin-top:22px;">
+        <div class="md:col-span-3"><label class="f" for="bName">Brand name</label><input class="t" id="bName" placeholder="Acme"></div>
+        <div class="md:col-span-3"><label class="f" for="bDomain">Domain</label><input class="t" id="bDomain" placeholder="acme.com"></div>
+        <div class="md:col-span-6"><label class="f" for="bAlias">Other ways it gets written</label><input class="t" id="bAlias" placeholder="Acme Billing, AcmeHQ, acme.io"></div>
+        <div class="md:col-span-12"><label class="f" for="bComp">Competitors to track in the same answer</label>
+          <input class="t" id="bComp" placeholder="Stripe Billing, Chargebee, Paddle, Metronome"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2 PROMPTS -->
+  <section class="sec" id="prompts">
+    <div class="wrap">
+      <div class="sec-n">Step 2</div>
+      <h2 style="font-size:24px;">The questions your buyer asks before they ever see your pricing page</h2>
+      <p class="lead" style="margin-top:8px;">Keywords are short. Prompts carry the buyer, the constraint and the stack. Fill the blanks and generate a starter set, then edit freely.</p>
+      <div class="grid md:grid-cols-12 gap-4" style="margin-top:22px;">
+        <div class="md:col-span-3"><label class="f" for="gCat">Category</label><input class="t" id="gCat" placeholder="usage-based billing tool"></div>
+        <div class="md:col-span-3"><label class="f" for="gIcp">Who is buying</label><input class="t" id="gIcp" placeholder="a seed-stage SaaS"></div>
+        <div class="md:col-span-3"><label class="f" for="gStack">Must work with</label><input class="t" id="gStack" placeholder="Stripe"></div>
+        <div class="md:col-span-3"><label class="f" for="gCons">Hard constraint</label><input class="t" id="gCons" placeholder="permissions and audit logs"></div>
+      </div>
+      <div class="flex flex-wrap gap-2" style="margin-top:14px;">
+        <button class="btn" id="genBtn">Generate prompts</button>
+        <button class="btn btn-sm" id="clearPrompts">Clear all</button>
+        <span class="mono" style="font-size:11.5px; color:var(--ink-3); align-self:center;">10 max · one per line</span>
+      </div>
+      <div style="margin-top:14px;">
+        <textarea class="t" id="promptBox" rows="7" placeholder="best usage-based billing tool for a seed-stage SaaS on Stripe
+alternatives to Chargebee for a 2-person finance team
+cheapest billing platform that handles metered pricing"></textarea>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 ENGINES -->
+  <section class="sec" id="engines">
+    <div class="wrap">
+      <div class="sec-n">Step 3</div>
+      <h2 style="font-size:24px;">Pick how the answers get collected</h2>
+      <div class="flex gap-0" style="margin-top:18px; width:max-content; border-radius:3px; overflow:hidden;">
+        <button class="tab" id="tabManual" aria-selected="true">Paste mode — no keys</button>
+        <button class="tab" id="tabLive" aria-selected="false" style="border-left:none;">Live mode — your keys</button>
+      </div>
+
+      <div id="paneManual" style="margin-top:20px;">
+        <p class="lead">You ask the question in the real consumer apps — the same ones your buyer uses — and paste the answer back. Nothing is sent anywhere, and you get the personalised, logged-in answer an API would never show you. Open the grid below, click any square, copy the prompt, paste the reply.</p>
+      </div>
+
+      <div id="paneLive" style="margin-top:20px; display:none;">
+        <p class="lead">Keys stay in this page. They are sent in one request header to the provider's own domain and nowhere else — the page's content security policy blocks every other destination at the browser level.</p>
+        <div class="flex flex-wrap items-center gap-3" style="margin-top:16px;">
+          <label class="f" style="margin:0;">Keep keys</label>
+          <select class="t" id="keyPolicy" style="width:auto;">
+            <option value="memory">until I refresh (nothing stored)</option>
+            <option value="session">until I close this tab</option>
+            <option value="local">on this device until I clear it</option>
+          </select>
+          <label class="f" style="margin:0;">Runs per prompt</label>
+          <select class="t" id="runs" style="width:auto;"><option>1</option><option>2</option><option>3</option></select>
+          <button class="btn btn-sm" id="wipeKeys">Wipe keys now</button>
+        </div>
+        <div id="engineCards" class="grid md:grid-cols-2 gap-3" style="margin-top:16px;"></div>
+        <div class="flex flex-wrap items-center gap-3" style="margin-top:16px;">
+          <button class="btn btn-go" id="runBtn">Run the check</button>
+          <div class="bar-track" style="flex:1; min-width:180px;"><div class="bar-fill" id="runBar" style="width:0%"></div></div>
+          <span class="mono" id="runStat" style="font-size:12px; color:var(--ink-3);">idle</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 GRID -->
+  <section class="sec" id="grid">
+    <div class="wrap">
+      <div class="sec-n">Step 4</div>
+      <div class="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h2 style="font-size:24px;">The answer grid</h2>
+          <p class="lead" style="margin-top:8px;">One square per prompt per engine. The number is a 0–100 visibility score: being named at all is most of it, then how early you appear, whether your domain is linked, and how the answer talks about you.</p>
+        </div>
+        <div class="flex items-center gap-4 mono" style="font-size:11.5px; color:var(--ink-2);">
+          <span class="flex items-center gap-1.5"><i class="dot" style="background:var(--signal)"></i>named</span>
+          <span class="flex items-center gap-1.5"><i class="dot" style="background:var(--amber)"></i>weak</span>
+          <span class="flex items-center gap-1.5"><i class="dot" style="background:var(--miss)"></i>absent</span>
+          <span class="flex items-center gap-1.5"><i class="dot" style="background:var(--line-2)"></i>not checked</span>
+        </div>
+      </div>
+      <div style="margin-top:22px; overflow-x:auto;">
+        <div id="matrix" style="min-width:640px;"></div>
+      </div>
+      <p class="mono" id="gridHint" style="margin-top:12px; font-size:11.5px; color:var(--ink-3);">Add a brand and at least one prompt to build the grid.</p>
+    </div>
+  </section>
+
+  <!-- 5 RESULTS -->
+  <section class="sec" id="results">
+    <div class="wrap">
+      <div class="sec-n">Step 5</div>
+      <h2 style="font-size:24px;">What the grid says</h2>
+      <div class="grid lg:grid-cols-12 gap-6" style="margin-top:22px;">
+        <div class="lg:col-span-4 panel" style="padding:20px;">
+          <div class="mono" style="font-size:11.5px; color:var(--ink-3);">visibility score</div>
+          <div class="num-xl" id="bigScore" style="margin-top:10px;">—</div>
+          <div id="scoreWord" style="color:var(--ink-2); font-size:13.5px; margin-top:8px;">Nothing checked yet.</div>
+          <div style="margin-top:18px;">
+            <div class="kv"><span>Answers checked</span><b class="mono" id="kAnswers">0</b></div>
+            <div class="kv"><span>Named in</span><b class="mono" id="kNamed">0</b></div>
+            <div class="kv"><span>First name in the list</span><b class="mono" id="kFirst">0</b></div>
+            <div class="kv"><span>Your domain linked</span><b class="mono" id="kCited">0</b></div>
+            <div class="kv" style="border:none;"><span>Share of the conversation</span><b class="mono" id="kSov">0%</b></div>
+          </div>
+        </div>
+        <div class="lg:col-span-4 panel" style="padding:20px;">
+          <div class="mono" style="font-size:11.5px; color:var(--ink-3);">who the models name instead</div>
+          <div id="sovList" style="margin-top:14px;"><p style="color:var(--ink-3); font-size:13px;">Run a check to see the leaderboard.</p></div>
+        </div>
+        <div class="lg:col-span-4 panel" style="padding:20px;">
+          <div class="mono" style="font-size:11.5px; color:var(--ink-3);">sources the answers leaned on</div>
+          <div id="domList" style="margin-top:14px;"><p style="color:var(--ink-3); font-size:13px;">Domains found inside the answers show up here — this is the third-party layer worth winning.</p></div>
+        </div>
+      </div>
+      <div class="flex flex-wrap gap-2" style="margin-top:18px;">
+        <button class="btn" id="copyJson">Copy report as JSON</button>
+        <button class="btn" id="copyCsv">Copy report as CSV</button>
+        <button class="btn" id="dlJson">Download report</button>
+        <button class="btn" id="resetAll">Reset everything</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 FIX KIT -->
+  <section class="sec" id="fix">
+    <div class="wrap">
+      <div class="sec-n">Step 6</div>
+      <h2 style="font-size:24px;">The fix, generated from what you entered</h2>
+      <p class="lead" style="margin-top:8px;">A missing square is usually one of three things: the crawlers are blocked, the page buries the answer, or nothing on the page is extractable as a fact. These are the files that fix the first two.</p>
+      <div class="grid md:grid-cols-2 gap-5" style="margin-top:22px;">
+        <div>
+          <div class="flex items-center justify-between" style="margin-bottom:8px;">
+            <h3 style="font-size:15px;">llms.txt</h3><button class="btn btn-sm" data-copy="outLlms">Copy</button></div>
+          <pre class="code" id="outLlms">Fill in step 1 and 2.</pre>
+        </div>
+        <div>
+          <div class="flex items-center justify-between" style="margin-bottom:8px;">
+            <h3 style="font-size:15px;">robots.txt — let the answer engines in</h3><button class="btn btn-sm" data-copy="outRobots">Copy</button></div>
+          <pre class="code" id="outRobots">Fill in step 1 and 2.</pre>
+        </div>
+        <div>
+          <div class="flex items-center justify-between" style="margin-bottom:8px;">
+            <h3 style="font-size:15px;">Schema for your comparison page</h3><button class="btn btn-sm" data-copy="outSchema">Copy</button></div>
+          <pre class="code" id="outSchema">Fill in step 1 and 2.</pre>
+        </div>
+        <div>
+          <div class="flex items-center justify-between" style="margin-bottom:8px;">
+            <h3 style="font-size:15px;">Answer-first page skeleton</h3><button class="btn btn-sm" data-copy="outPage">Copy</button></div>
+          <pre class="code" id="outPage">Fill in step 1 and 2.</pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 TRUST -->
+  <section class="sec" id="trust">
+    <div class="wrap">
+      <div class="sec-n">Before you paste a key</div>
+      <h2 style="font-size:24px;">Fair question: why would you trust an unknown page with an API key?</h2>
+      <p class="lead" style="margin-top:8px;">You shouldn't, on trust alone. So the answer here is that you don't have to take anyone's word for it — six ways down, in order of how paranoid you want to be.</p>
+
+      <div class="grid md:grid-cols-3 gap-5" style="margin-top:24px;">
+        <div class="panel" style="padding:18px;">
+          <h3 style="font-size:15px;">Use no key at all</h3>
+          <p style="font-size:13.5px; color:var(--ink-2); margin-top:8px;">Paste mode scores the answers you collect by hand. Every number on this page works without a key — and it reads the logged-in consumer answer, which is closer to what your buyer sees than an API response.</p>
+        </div>
+        <div class="panel" style="padding:18px;">
+          <h3 style="font-size:15px;">Take the page off the internet</h3>
+          <p style="font-size:13.5px; color:var(--ink-2); margin-top:8px;">This is one HTML file with no build step and no backend. Save it, open it from your own disk, and the "site you don't know" is now a file you own. Nothing about it changes.</p>
+        </div>
+        <div class="panel" style="padding:18px;">
+          <h3 style="font-size:15px;">Read it in a minute</h3>
+          <p style="font-size:13.5px; color:var(--ink-2); margin-top:8px;">View source and search for <code>fetch(</code>. There are four call sites, all named below. There is no bundler hiding them and no minified blob to squint at.</p>
+        </div>
+        <div class="panel" style="padding:18px;">
+          <h3 style="font-size:15px;">Let the browser enforce it</h3>
+          <p style="font-size:13.5px; color:var(--ink-2); margin-top:8px;">The file ships a content security policy that allows exactly four network destinations. If this page tried to post your key anywhere else, Chrome would refuse the request, not ask permission. Search the source for <code>Content-Security-Policy</code>.</p>
+        </div>
+        <div class="panel" style="padding:18px;">
+          <h3 style="font-size:15px;">Watch every request live</h3>
+          <p style="font-size:13.5px; color:var(--ink-2); margin-top:8px;">Every outbound call is logged below as it happens, with its destination and size. Calls to anything not on the allowlist are refused in code and logged in red before the network is touched.</p>
+        </div>
+        <div class="panel" style="padding:18px;">
+          <h3 style="font-size:15px;">Make the key worthless</h3>
+          <p style="font-size:13.5px; color:var(--ink-2); margin-top:8px;">Cut a fresh key with a $1 cap, run the check, revoke it. Ten minutes of exposure on a key that can spend a dollar is a different risk from your production key, and it costs you one click.</p>
+        </div>
+      </div>
+
+      <div class="grid lg:grid-cols-2 gap-5" style="margin-top:20px;">
+        <div class="panel" style="padding:18px;">
+          <div class="flex items-center justify-between" style="margin-bottom:10px;">
+            <h3 style="font-size:15px;">Network log</h3>
+            <span class="mono" style="font-size:11px; color:var(--ink-3);">allowlist: 4 hosts</span>
+          </div>
+          <div class="log sunk" id="netLog" style="padding:10px;">No requests yet.</div>
+          <div class="mono" style="font-size:11px; color:var(--ink-3); margin-top:8px;" id="allowList"></div>
+        </div>
+        <div class="panel" style="padding:18px;">
+          <div class="flex items-center justify-between" style="margin-bottom:10px;">
+            <h3 style="font-size:15px;">If your policy says keys never touch a browser</h3>
+            <button class="btn btn-sm" data-copy="outProxy">Copy worker</button>
+          </div>
+          <p style="font-size:13.5px; color:var(--ink-2); margin-bottom:10px;">Deploy this on your own domain, put the real key in an environment variable, and point the endpoint field at your worker. The page then never sees a secret at all.</p>
+          <pre class="code" id="outProxy"></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="sec" style="padding-bottom:64px;">
+    <div class="wrap grid md:grid-cols-3 gap-6">
+      <div>
+        <div style="font-weight:600;">Cited</div>
+        <p style="font-size:13px; color:var(--ink-2); margin-top:8px;">A diagnostic, not an oracle. Model answers vary run to run and by account — treat a single square as a sample, and re-run the same prompts weekly to see a trend rather than a verdict.</p>
+      </div>
+      <div>
+        <div style="font-weight:600;">Built on</div>
+        <p style="font-size:13px; color:var(--ink-2); margin-top:8px;">
+          <a href="https://threejs.org" target="_blank" rel="noopener">three.js</a> (MIT) ·
+          <a href="https://tailwindcss.com" target="_blank" rel="noopener">Tailwind CSS</a> (MIT) ·
+          <a href="https://fonts.google.com/specimen/Archivo" target="_blank" rel="noopener">Archivo</a> and
+          <a href="https://fonts.google.com/specimen/DM+Mono" target="_blank" rel="noopener">DM Mono</a> (OFL).
+          Scoring is plain JavaScript in this file.
+        </p>
+      </div>
+      <div>
+        <div style="font-weight:600;">Scoring, stated plainly</div>
+        <p class="mono" style="font-size:11.5px; color:var(--ink-2); margin-top:8px; line-height:1.7;">
+          named 32 · position in the list 34 · how early 10 · domain in the answer 14 · tone 10
+        </p>
+      </div>
+    </div>
+  </footer>
+</main>
+
+<div class="drawer" id="drawer" role="dialog" aria-modal="true" aria-label="Answer detail">
+  <div class="drawer-body" id="drawerBody"></div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+/* ---------------------------------------------------------------------------
+   Cited — answer engine visibility check.
+   Single file. No backend. Four network destinations, all listed in ALLOW.
+   Search this file for "fetch(" to audit every outbound call.
+--------------------------------------------------------------------------- */
+(function(){
+'use strict';
+const $ = (s,r)=> (r||document).querySelector(s);
+const $$ = (s,r)=> Array.prototype.slice.call((r||document).querySelectorAll(s));
+const esc = s => String(s).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+const escHtml = s => String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('on'),1900); }
+function copyText(txt){
+  const done=()=>toast('Copied');
+  if(navigator.clipboard && window.isSecureContext){ navigator.clipboard.writeText(txt).then(done).catch(()=>fallback()); } else fallback();
+  function fallback(){ const ta=document.createElement('textarea'); ta.value=txt; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select(); try{document.execCommand('copy'); done();}catch(e){toast('Select and copy manually');} ta.remove(); }
+}
+const store = {
+  get(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } },
+  set(k,v){ try{ localStorage.setItem(k,v); }catch(e){} },
+  del(k){ try{ localStorage.removeItem(k); }catch(e){} },
+  sget(k){ try{ return sessionStorage.getItem(k); }catch(e){ return null; } },
+  sset(k,v){ try{ sessionStorage.setItem(k,v); }catch(e){} },
+  sdel(k){ try{ sessionStorage.removeItem(k); }catch(e){} }
+};
+
+/* ---------- theme ---------- */
+(function theme(){
+  const saved = store.get('cited.theme');
+  if(saved) document.documentElement.setAttribute('data-theme', saved);
+  const btn = $('#themeBtn');
+  const sync = ()=>{ btn.textContent = document.documentElement.getAttribute('data-theme')==='light' ? 'Dark' : 'Light'; };
+  sync();
+  btn.addEventListener('click', ()=>{
+    const next = document.documentElement.getAttribute('data-theme')==='light' ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', next); store.set('cited.theme', next); sync();
+    if(window.__viz) window.__viz.recolor();
+  });
+})();
+
+/* ---------- guarded fetch: the only way this page reaches the network ---------- */
+const ALLOW = ['api.openai.com','api.perplexity.ai','api.anthropic.com','generativelanguage.googleapis.com'];
+$('#allowList').textContent = ALLOW.join('  ·  ');
+const netLines = [];
+function netLog(text, bad){
+  netLines.unshift({t:new Date().toTimeString().slice(0,8), text, bad});
+  const el = $('#netLog');
+  el.innerHTML = netLines.slice(0,60).map(l=>
+    '<div style="padding:2px 0;'+(l.bad?'color:var(--miss);':'')+'">'+l.t+'  '+escHtml(l.text)+'</div>').join('');
+}
+async function guardedFetch(url, opts){
+  let host=''; try{ host = new URL(url).host; }catch(e){}
+  if(ALLOW.indexOf(host) === -1){ netLog('BLOCKED in code → '+host, true); throw new Error('Destination not on allowlist: '+host); }
+  netLog('→ '+host+'  ('+((opts&&opts.body?opts.body.length:0))+' bytes out)');
+  const t0 = performance.now();
+  const res = await fetch(url, opts);
+  const body = await res.text();
+  netLog('← '+host+'  '+res.status+'  '+body.length+' bytes  '+Math.round(performance.now()-t0)+'ms', !res.ok);
+  let json=null; try{ json = JSON.parse(body); }catch(e){}
+  if(!res.ok){
+    const m = (json && (json.error && (json.error.message||json.error.type))) || body.slice(0,180);
+    throw new Error(res.status+' · '+m);
+  }
+  return json;
+}
+
+/* ---------- engines ---------- */
+const ENGINES = [
+  { id:'chatgpt', label:'ChatGPT', vendor:'OpenAI', model:'gpt-4o-mini',
+    endpoint:'https://api.openai.com/v1/chat/completions', keys:'https://platform.openai.com/api-keys',
+    ask:'https://chatgpt.com/?q=', api:true },
+  { id:'claude', label:'Claude', vendor:'Anthropic', model:'claude-sonnet-4-5',
+    endpoint:'https://api.anthropic.com/v1/messages', keys:'https://console.anthropic.com/settings/keys',
+    ask:'https://claude.ai/new?q=', api:true },
+  { id:'perplexity', label:'Perplexity', vendor:'Perplexity', model:'sonar',
+    endpoint:'https://api.perplexity.ai/chat/completions', keys:'https://www.perplexity.ai/account/api/keys',
+    ask:'https://www.perplexity.ai/search?q=', api:true },
+  { id:'gemini', label:'Gemini', vendor:'Google', model:'gemini-2.0-flash',
+    endpoint:'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent',
+    keys:'https://aistudio.google.com/app/apikey', ask:'https://gemini.google.com/app', api:true },
+  { id:'aimode', label:'Google AI Mode', vendor:'Google', model:'—',
+    ask:'https://www.google.com/search?udm=50&q=', api:false }
+];
+const ENG = {}; ENGINES.forEach(e=>ENG[e.id]=e);
+
+async function askEngine(eng, key, model, prompt){
+  if(eng.id==='chatgpt'){
+    const d = await guardedFetch(eng.endpoint, { method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
+      body: JSON.stringify({ model, messages:[{role:'user',content:prompt}] }) });
+    return d.choices[0].message.content;
+  }
+  if(eng.id==='claude'){
+    const d = await guardedFetch(eng.endpoint, { method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01',
+               'anthropic-dangerous-direct-browser-access':'true'},
+      body: JSON.stringify({ model, max_tokens:1024, messages:[{role:'user',content:prompt}] }) });
+    return (d.content||[]).map(b=>b.text||'').join('\n');
+  }
+  if(eng.id==='perplexity'){
+    const d = await guardedFetch(eng.endpoint, { method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
+      body: JSON.stringify({ model, messages:[{role:'user',content:prompt}] }) });
+    let txt = d.choices[0].message.content;
+    if(d.citations && d.citations.length) txt += '\n\nSources: ' + d.citations.join(' ');
+    if(d.search_results) txt += '\n' + d.search_results.map(r=>r.url||'').join(' ');
+    return txt;
+  }
+  if(eng.id==='gemini'){
+    const url = eng.endpoint.replace('{model}', encodeURIComponent(model)) + '?key=' + encodeURIComponent(key);
+    const d = await guardedFetch(url, { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ contents:[{ parts:[{ text: prompt }] }] }) });
+    const c = d.candidates && d.candidates[0];
+    return ((c && c.content && c.content.parts) || []).map(p=>p.text||'').join('\n');
+  }
+  throw new Error(eng.label + ' has no public API — use paste mode for this column.');
+}
+
+/* ---------- state ---------- */
+const S = {
+  brand:{name:'',domain:'',aliases:[]},
+  competitors:[],
+  prompts:[],
+  keys:{}, models:{}, enabled:{},
+  policy:'memory', runs:1, mode:'manual',
+  results:{}   // "engineId|promptIdx" -> result object
+};
+ENGINES.forEach(e=>{ S.models[e.id]=e.model; S.enabled[e.id]= e.api; });
+
+function saveConfig(){
+  store.set('cited.config', JSON.stringify({ brand:S.brand, competitors:S.competitors, prompts:S.prompts,
+    models:S.models, enabled:S.enabled, policy:S.policy, runs:S.runs }));
+}
+function loadConfig(){
+  try{
+    const c = JSON.parse(store.get('cited.config')||'null'); if(!c) return;
+    Object.assign(S, { brand:c.brand||S.brand, competitors:c.competitors||[], prompts:c.prompts||[],
+      models:c.models||S.models, enabled:c.enabled||S.enabled, policy:c.policy||'memory', runs:c.runs||1 });
+  }catch(e){}
+}
+function loadKeys(){
+  const raw = (S.policy==='local' ? store.get('cited.keys') : store.sget('cited.keys'));
+  if(raw){ try{ S.keys = JSON.parse(raw); }catch(e){} }
+}
+function persistKeys(){
+  const raw = JSON.stringify(S.keys);
+  store.del('cited.keys'); store.sdel('cited.keys');
+  if(S.policy==='local') store.set('cited.keys', raw);
+  else if(S.policy==='session') store.sset('cited.keys', raw);
+}
+
+/* ---------- scoring ---------- */
+function brandTerms(){
+  const t = [S.brand.name].concat(S.brand.aliases);
+  if(S.brand.domain) t.push(S.brand.domain, S.brand.domain.replace(/\.[a-z.]+$/,''));
+  return t.filter(x=>x && x.trim().length>1).map(x=>x.trim());
+}
+function findTerm(text, terms){
+  let first = -1, count = 0;
+  terms.forEach(term=>{
+    const re = new RegExp('(^|[^a-z0-9])'+esc(term)+'([^a-z0-9]|$)','gi');
+    let m; while((m = re.exec(text))!==null){ count++; const at = m.index + m[1].length;
+      if(first<0 || at<first) first = at; if(m.index===re.lastIndex) re.lastIndex++; }
+  });
+  return {count, first};
+}
+function listItems(text){
+  const lines = text.split('\n'); const items = [];
+  lines.forEach(line=>{
+    let m;
+    if((m = line.match(/^\s*\d+[.)]\s+(.+)$/))) items.push(m[1]);
+    else if((m = line.match(/^\s*[-*•–]\s+(.+)$/))) items.push(m[1]);
+    else if((m = line.match(/^\s*#{2,4}\s+(.+)$/))) items.push(m[1]);
+    else if((m = line.match(/^\s*\*\*(.+?)\*\*/))) items.push(m[1]);
+  });
+  return items;
+}
+const POS = ['best','top pick','great for','ideal','recommend','strong','excellent','popular','leader','favourite','favorite','solid','well suited','purpose-built','standout'];
+const NEG = ['expensive','pricey','limited','lacks','overkill','not ideal','avoid','clunky','steep learning','dated','weak','complaints','only if','less suitable'];
+function toneAround(text, at){
+  if(at<0) return 0;
+  const w = text.slice(Math.max(0,at-140), at+220).toLowerCase();
+  let s = 0; POS.forEach(p=>{ if(w.indexOf(p)>-1) s++; }); NEG.forEach(n=>{ if(w.indexOf(n)>-1) s--; });
+  return s>0?1:(s<0?-1:0);
+}
+function domainsIn(text){
+  const out = {};
+  const re = /https?:\/\/([a-z0-9.-]+)/gi; let m;
+  while((m=re.exec(text))!==null) out[m[1].replace(/^www\./,'')] = (out[m[1].replace(/^www\./,'')]||0)+1;
+  const bare = /(?:^|[\s(\[])([a-z0-9-]+\.(?:com|io|ai|co|net|org|dev|app|so|xyz|sh))(?=[\s).,\]]|$)/gi;
+  while((m=bare.exec(text))!==null){ const d=m[1].toLowerCase(); out[d]=(out[d]||0)+1; }
+  return out;
+}
+function analyse(text){
+  const terms = brandTerms();
+  const me = findTerm(text, terms);
+  const comps = S.competitors.map(c=>({ name:c, hit:findTerm(text,[c]) }));
+  const items = listItems(text);
+
+  let rank = 0, rankOf = 0;
+  if(me.first>-1){
+    if(items.length){
+      for(let i=0;i<items.length;i++){ if(findTerm(items[i],terms).first>-1){ rank=i+1; break; } }
+      rankOf = items.length;
+    }
+    if(!rank){
+      const order = [{n:'__me',at:me.first}].concat(comps.filter(c=>c.hit.first>-1).map(c=>({n:c.name,at:c.hit.first})));
+      order.sort((a,b)=>a.at-b.at);
+      rank = order.findIndex(o=>o.n==='__me')+1; rankOf = order.length;
+    }
+  }
+  const prominence = me.first>-1 ? Math.max(0, 1 - (me.first/Math.max(1,text.length))) : 0;
+  const linked = !!(S.brand.domain && text.toLowerCase().indexOf(S.brand.domain.toLowerCase())>-1);
+  const tone = toneAround(text, me.first);
+
+  let score = 0;
+  if(me.first>-1){
+    score += 32;                                   // named at all
+    const rs = rank ? Math.max(0.10, Math.pow(0.72, rank-1)) : 0.28;
+    score += rs*34;                                // where in the list
+    score += prominence*10;                        // how early in the answer
+    if(linked) score += 14;                        // domain present, i.e. citable
+    score += tone>0 ? 10 : (tone===0 ? 5 : 0);     // how it is described
+  }
+  return { text, score: Math.round(Math.min(100,score)), mentioned: me.first>-1, count: me.count,
+    rank, rankOf, prominence, linked, tone, domains: domainsIn(text),
+    competitors: comps.map(c=>({name:c.name, count:c.hit.count, first:c.hit.first})), at: Date.now() };
+}
+
+/* ---------- inputs ---------- */
+function readSetup(){
+  S.brand.name = $('#bName').value.trim();
+  S.brand.domain = $('#bDomain').value.trim().replace(/^https?:\/\//,'').replace(/\/.*$/,'');
+  S.brand.aliases = $('#bAlias').value.split(',').map(s=>s.trim()).filter(Boolean);
+  S.competitors = $('#bComp').value.split(',').map(s=>s.trim()).filter(Boolean).slice(0,10);
+  S.prompts = $('#promptBox').value.split('\n').map(s=>s.trim()).filter(Boolean).slice(0,10);
+  saveConfig(); renderMatrix(); renderResults(); renderFixKit();
+}
+['#bName','#bDomain','#bAlias','#bComp','#promptBox'].forEach(sel=>{
+  const el = $(sel); el.addEventListener('input', debounce(readSetup, 250));
+});
+function debounce(fn,ms){ let h; return function(){ clearTimeout(h); h=setTimeout(fn,ms); }; }
+
+$('#genBtn').addEventListener('click', ()=>{
+  const cat = $('#gCat').value.trim() || 'project management tool';
+  const icp = $('#gIcp').value.trim() || 'a 20-person remote team';
+  const stack = $('#gStack').value.trim();
+  const cons = $('#gCons').value.trim();
+  const rival = S.competitors[0] || $('#bComp').value.split(',')[0] || 'the market leader';
+  const p = [
+    'best ' + cat + ' for ' + icp,
+    'what ' + cat + ' should ' + icp + ' use in 2026',
+    'alternatives to ' + rival + ' for ' + icp,
+    'cheapest ' + cat + ' for a seed-stage startup',
+    'compare the top ' + cat + ' options and tell me which to pick'
+  ];
+  if(stack) p.push('best ' + cat + ' that works with ' + stack);
+  if(cons) p.push('which ' + cat + ' handles ' + cons);
+  if(S.brand.name) p.push('is ' + S.brand.name + ' a good ' + cat + ' for ' + icp + '?');
+  const existing = $('#promptBox').value.split('\n').map(s=>s.trim()).filter(Boolean);
+  $('#promptBox').value = existing.concat(p.filter(x=>existing.indexOf(x)===-1)).slice(0,10).join('\n');
+  readSetup(); toast('Prompts generated');
+});
+$('#clearPrompts').addEventListener('click', ()=>{ $('#promptBox').value=''; readSetup(); });
+
+/* ---------- mode tabs ---------- */
+function setMode(m){
+  S.mode = m;
+  $('#tabManual').setAttribute('aria-selected', m==='manual');
+  $('#tabLive').setAttribute('aria-selected', m==='live');
+  $('#paneManual').style.display = m==='manual' ? 'block':'none';
+  $('#paneLive').style.display = m==='live' ? 'block':'none';
+}
+$('#tabManual').addEventListener('click', ()=>setMode('manual'));
+$('#tabLive').addEventListener('click', ()=>setMode('live'));
+
+/* ---------- engine key cards ---------- */
+function renderEngineCards(){
+  $('#engineCards').innerHTML = ENGINES.filter(e=>e.api).map(e=>
+    '<div class="panel" style="padding:14px;">'+
+      '<div class="flex items-center justify-between" style="margin-bottom:10px;">'+
+        '<label style="display:flex; align-items:center; gap:8px; font-weight:500; font-size:14px;">'+
+          '<input type="checkbox" data-en="'+e.id+'" '+(S.enabled[e.id]?'checked':'')+'> '+e.label+
+          '<span style="color:var(--ink-3); font-weight:400; font-size:12px;">'+e.vendor+'</span></label>'+
+        '<a class="mono" style="font-size:11px; color:var(--ink-3);" target="_blank" rel="noopener" href="'+e.keys+'">get a key</a>'+
+      '</div>'+
+      '<input class="t" type="password" autocomplete="off" spellcheck="false" data-key="'+e.id+'" placeholder="paste key" value="'+(S.keys[e.id]||'')+'">'+
+      '<div class="flex gap-2" style="margin-top:8px;">'+
+        '<input class="t mono" style="font-size:12px;" data-model="'+e.id+'" value="'+(S.models[e.id]||'')+'">'+
+        '<button class="btn btn-sm" data-test="'+e.id+'">Test</button>'+
+      '</div>'+
+      '<div class="mono" data-stat="'+e.id+'" style="font-size:11px; color:var(--ink-3); margin-top:7px;">not tested</div>'+
+    '</div>').join('');
+
+  $$('[data-key]').forEach(i=> i.addEventListener('input', ()=>{ S.keys[i.dataset.key]=i.value.trim(); persistKeys(); }));
+  $$('[data-model]').forEach(i=> i.addEventListener('input', ()=>{ S.models[i.dataset.model]=i.value.trim(); saveConfig(); }));
+  $$('[data-en]').forEach(i=> i.addEventListener('change', ()=>{ S.enabled[i.dataset.en]=i.checked; saveConfig(); }));
+  $$('[data-test]').forEach(b=> b.addEventListener('click', async ()=>{
+    const id = b.dataset.test, stat = $('[data-stat="'+id+'"]');
+    if(!S.keys[id]){ stat.textContent='add a key first'; stat.style.color='var(--miss)'; return; }
+    stat.textContent='testing…'; stat.style.color='var(--ink-3)';
+    try{ await askEngine(ENG[id], S.keys[id], S.models[id], 'Reply with the single word: ok');
+      stat.textContent='key works'; stat.style.color='var(--signal)';
+    }catch(err){ stat.textContent = shortErr(err); stat.style.color='var(--miss)'; }
+  }));
+}
+function shortErr(err){
+  const m = String(err && err.message || err);
+  if(/Failed to fetch|NetworkError|blocked|CSP|Load failed/i.test(m))
+    return 'browser blocked the call — save this file and open it locally, or use paste mode';
+  return m.slice(0,120);
+}
+$('#keyPolicy').addEventListener('change', e=>{ S.policy = e.target.value; persistKeys(); saveConfig(); toast('Key handling: '+e.target.selectedOptions[0].text); });
+$('#runs').addEventListener('change', e=>{ S.runs = parseInt(e.target.value,10)||1; saveConfig(); });
+$('#wipeKeys').addEventListener('click', ()=>{ S.keys={}; store.del('cited.keys'); store.sdel('cited.keys'); renderEngineCards(); toast('Keys wiped from this page and storage'); });
+
+/* ---------- matrix ---------- */
+function tier(score){ return score>=60 ? 'var(--signal)' : (score>0 ? 'var(--amber)' : 'var(--miss)'); }
+function renderMatrix(){
+  const host = $('#matrix');
+  if(!S.prompts.length){ host.innerHTML=''; $('#gridHint').textContent='Add a brand and at least one prompt to build the grid.'; return; }
+  $('#gridHint').textContent='Click any square to paste an answer, or to read the one that is already there.';
+  const cols = ENGINES;
+  let html = '<div class="grid-wells" style="grid-template-columns:230px repeat('+cols.length+',minmax(92px,1fr));">';
+  html += '<div></div>' + cols.map(c=>'<div class="colhead">'+c.label+(c.api?'':'<br><span style="color:var(--ink-3); font-size:10.5px;">paste only</span>')+'</div>').join('');
+  S.prompts.forEach((p,pi)=>{
+    html += '<div class="rowhead" title="'+escHtml(p)+'">'+escHtml(p.length>64?p.slice(0,62)+'…':p)+'</div>';
+    cols.forEach(c=>{
+      const r = S.results[c.id+'|'+pi];
+      const has = !!r;
+      const bg = has ? 'background:color-mix(in srgb, '+tier(r.score)+' '+Math.max(8, r.score*0.7)+'%, var(--sunk));' : '';
+      const bd = has ? 'border-color:'+tier(r.score)+';' : '';
+      html += '<button class="cell '+(has?'has':'')+'" style="'+bg+bd+'" data-cell="'+c.id+'|'+pi+'">'+
+        (has ? (r.error ? '!' : r.score) : '·') +
+        (has && r.rank ? '<span class="badge">#'+r.rank+'</span>' : '') + '</button>';
+    });
+  });
+  html += '</div>';
+  host.innerHTML = html;
+  $$('[data-cell]').forEach(b=> b.addEventListener('click', ()=> openDrawer(b.dataset.cell)));
+  if(window.__viz) window.__viz.sync();
+}
+
+/* ---------- drawer ---------- */
+let openKey = null;
+function openDrawer(key){
+  openKey = key;
+  const [eid, pi] = key.split('|');
+  const eng = ENG[eid], prompt = S.prompts[pi], r = S.results[key];
+  const askUrl = eng.ask + (eng.ask.indexOf('?')>-1 ? encodeURIComponent(prompt) : '');
+  let html = '<div style="padding:22px;">'+
+    '<div class="flex items-start justify-between gap-4">'+
+      '<div><div class="mono" style="font-size:11.5px; color:var(--ink-3);">'+eng.label+'</div>'+
+      '<h3 style="font-size:19px; margin-top:6px; max-width:44ch;">'+escHtml(prompt)+'</h3></div>'+
+      '<button class="btn btn-sm" id="closeDrawer">Close</button>'+
+    '</div>'+
+    '<div class="flex flex-wrap gap-2" style="margin:16px 0;">'+
+      '<button class="btn btn-sm" id="copyPrompt">Copy prompt</button>'+
+      '<a class="btn btn-sm" target="_blank" rel="noopener" href="'+askUrl+'">Open '+eng.label+'</a>'+
+      (r ? '<button class="btn btn-sm" id="clearCell">Clear this square</button>' : '')+
+    '</div>';
+
+  if(r && !r.error){
+    const pct = v => Math.round(v*100)+'%';
+    html += '<div class="panel" style="padding:16px; margin-bottom:16px;">'+
+      '<div class="flex items-baseline gap-3"><div class="num-xl" style="font-size:40px;">'+r.score+'</div>'+
+      '<div style="color:var(--ink-2); font-size:13.5px;">'+ (r.mentioned ? 'named in this answer' : 'not named at all') +'</div></div>'+
+      '<div style="margin-top:14px;">'+
+        '<div class="kv"><span>Position in the list</span><b class="mono">'+(r.rank? ('#'+r.rank+' of '+r.rankOf) : '—')+'</b></div>'+
+        '<div class="kv"><span>Times named</span><b class="mono">'+r.count+'</b></div>'+
+        '<div class="kv"><span>How early it appears</span><b class="mono">'+pct(r.prominence)+'</b></div>'+
+        '<div class="kv"><span>Your domain in the answer</span><b class="mono">'+(r.linked?'yes':'no')+'</b></div>'+
+        '<div class="kv" style="border:none;"><span>How it is described</span><b class="mono">'+(r.tone>0?'positive':(r.tone<0?'hedged':'neutral'))+'</b></div>'+
+      '</div></div>';
+    html += '<div class="mono" style="font-size:11.5px; color:var(--ink-3); margin-bottom:6px;">the answer, with names marked</div>'+
+      '<div class="sunk" style="padding:14px; font-size:13.5px; line-height:1.65; white-space:pre-wrap;">'+highlight(r.text)+'</div>';
+  } else if(r && r.error){
+    html += '<div class="panel" style="padding:16px; border-color:var(--miss);"><div style="font-size:13.5px; color:var(--miss);">'+escHtml(r.error)+'</div></div>';
+  }
+  if(!r || r.error){
+    html += '<label class="f" for="pasteBox" style="margin-top:10px;">Paste what the assistant answered</label>'+
+      '<textarea class="t" id="pasteBox" rows="12" placeholder="Paste the full reply, including any source links."></textarea>'+
+      '<button class="btn btn-go" id="scorePaste" style="margin-top:12px;">Score this answer</button>';
+  }
+  html += '</div>';
+  $('#drawerBody').innerHTML = html;
+  $('#drawer').setAttribute('data-open','1');
+  const cp=$('#copyPrompt'); if(cp) cp.addEventListener('click', ()=>copyText(prompt));
+  const cd=$('#closeDrawer'); if(cd) cd.addEventListener('click', closeDrawer);
+  const cc=$('#clearCell'); if(cc) cc.addEventListener('click', ()=>{ delete S.results[key]; renderMatrix(); renderResults(); closeDrawer(); });
+  const sp=$('#scorePaste');
+  if(sp) sp.addEventListener('click', ()=>{
+    const txt = $('#pasteBox').value.trim();
+    if(txt.length<20){ toast('Paste the answer first'); return; }
+    if(!S.brand.name && !S.brand.domain){ toast('Add your brand name in step 1'); return; }
+    S.results[key] = analyse(txt);
+    renderMatrix(); renderResults(); closeDrawer(); toast('Scored — square updated');
+  });
+  const ta=$('#pasteBox'); if(ta) ta.focus();
+}
+function closeDrawer(){ $('#drawer').setAttribute('data-open','0'); openKey=null; }
+$('#drawer').addEventListener('click', e=>{ if(e.target.id==='drawer') closeDrawer(); });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeDrawer(); });
+
+function highlight(text){
+  let out = escHtml(text);
+  brandTerms().forEach(t=>{ out = out.replace(new RegExp('('+esc(escHtml(t))+')','gi'), '<mark class="me">$1</mark>'); });
+  S.competitors.forEach(c=>{ out = out.replace(new RegExp('(?![^<]*>)('+esc(escHtml(c))+')','gi'), '<mark class="them">$1</mark>'); });
+  return out;
+}
+
+/* ---------- live run ---------- */
+$('#runBtn').addEventListener('click', async ()=>{
+  readSetup();
+  if(!S.prompts.length) return toast('Add at least one prompt');
+  if(!S.brand.name && !S.brand.domain) return toast('Add your brand in step 1');
+  const list = ENGINES.filter(e=>e.api && S.enabled[e.id] && S.keys[e.id]);
+  if(!list.length) return toast('Add a key for at least one engine');
+  const jobs = [];
+  list.forEach(e=> S.prompts.forEach((p,pi)=> jobs.push({e,p,pi})));
+  const btn = $('#runBtn'); btn.disabled = true;
+  let done = 0;
+  for(const j of jobs){
+    $('#runStat').textContent = j.e.label + ' · prompt ' + (j.pi+1);
+    const texts = [];
+    let err = null;
+    for(let k=0;k<S.runs;k++){
+      try{ texts.push(await askEngine(j.e, S.keys[j.e.id], S.models[j.e.id], j.p)); }
+      catch(ex){ err = shortErr(ex); break; }
+    }
+    if(texts.length){
+      const scored = texts.map(analyse);
+      const best = scored.reduce((a,b)=> b.score>a.score?b:a);
+      best.score = Math.round(scored.reduce((s,x)=>s+x.score,0)/scored.length);
+      best.runs = scored.length;
+      best.frequency = Math.round(100*scored.filter(x=>x.mentioned).length/scored.length);
+      S.results[j.e.id+'|'+j.pi] = best;
+    } else {
+      S.results[j.e.id+'|'+j.pi] = { error: err||'no answer', score:0, mentioned:false, domains:{}, competitors:[] };
+    }
+    done++; $('#runBar').style.width = Math.round(100*done/jobs.length)+'%';
+    renderMatrix(); renderResults();
+  }
+  $('#runStat').textContent = 'done · '+jobs.length+' answers';
+  btn.disabled = false;
+});
+
+/* ---------- results ---------- */
+function renderResults(){
+  const rs = Object.keys(S.results).map(k=>S.results[k]).filter(r=>!r.error);
+  $('#kAnswers').textContent = rs.length;
+  if(!rs.length){
+    $('#bigScore').textContent='—'; $('#hdrScore').textContent='—';
+    $('#scoreWord').textContent='Nothing checked yet.';
+    $('#kNamed').textContent='0'; $('#kFirst').textContent='0'; $('#kCited').textContent='0'; $('#kSov').textContent='0%';
+    $('#sovList').innerHTML='<p style="color:var(--ink-3); font-size:13px;">Run a check to see the leaderboard.</p>';
+    $('#domList').innerHTML='<p style="color:var(--ink-3); font-size:13px;">Domains found inside the answers show up here — this is the third-party layer worth winning.</p>';
+    if(window.__viz) window.__viz.sync();
+    return;
+  }
+  const avg = Math.round(rs.reduce((s,r)=>s+r.score,0)/rs.length);
+  $('#bigScore').textContent = avg; $('#hdrScore').textContent = avg;
+  const named = rs.filter(r=>r.mentioned).length;
+  $('#kNamed').textContent = named + ' / ' + rs.length;
+  $('#kFirst').textContent = rs.filter(r=>r.rank===1).length;
+  $('#kCited').textContent = rs.filter(r=>r.linked).length;
+  $('#scoreWord').textContent = avg>=65 ? 'You are part of the default answer in this category.'
+    : avg>=35 ? 'You surface sometimes, usually late and usually without a link.'
+    : named ? 'You are an afterthought in these answers.'
+    : 'You are absent. Every one of these buyers is being handed a competitor.';
+
+  const tally = {}; let mine = 0;
+  rs.forEach(r=>{ mine += r.count||0; (r.competitors||[]).forEach(c=>{ tally[c.name]=(tally[c.name]||0)+c.count; }); });
+  const total = mine + Object.keys(tally).reduce((s,k)=>s+tally[k],0);
+  $('#kSov').textContent = total ? Math.round(100*mine/total)+'%' : '0%';
+  const rows = [{name:(S.brand.name||'You'), n:mine, me:true}]
+    .concat(Object.keys(tally).map(k=>({name:k,n:tally[k]}))).sort((a,b)=>b.n-a.n);
+  const max = Math.max(1, rows[0].n);
+  $('#sovList').innerHTML = rows.slice(0,8).map(r=>
+    '<div style="margin-bottom:11px;">'+
+      '<div class="flex justify-between" style="font-size:13px; margin-bottom:4px;">'+
+        '<span style="'+(r.me?'font-weight:600;':'color:var(--ink-2);')+'">'+escHtml(r.name)+'</span>'+
+        '<span class="mono" style="color:var(--ink-3); font-size:12px;">'+r.n+'</span></div>'+
+      '<div class="bar-track"><div class="bar-fill" style="width:'+Math.round(100*r.n/max)+'%; background:'+(r.me?'var(--signal)':'var(--line-2)')+'"></div></div>'+
+    '</div>').join('');
+
+  const dom = {}; rs.forEach(r=> Object.keys(r.domains||{}).forEach(d=>{ dom[d]=(dom[d]||0)+r.domains[d]; }));
+  const dl = Object.keys(dom).sort((a,b)=>dom[b]-dom[a]).slice(0,12);
+  $('#domList').innerHTML = dl.length ? dl.map(d=>
+    '<div class="kv"><span style="'+(S.brand.domain && d.indexOf(S.brand.domain)>-1 ? 'color:var(--signal); font-weight:600;':'color:var(--ink-2);')+'">'+escHtml(d)+'</span><b class="mono">'+dom[d]+'</b></div>').join('')
+    : '<p style="color:var(--ink-3); font-size:13px;">No links in these answers. Paste replies that include sources to see this fill in.</p>';
+  if(window.__viz) window.__viz.sync();
+}
+
+/* ---------- report ---------- */
+function report(){
+  const rows = [];
+  Object.keys(S.results).forEach(k=>{
+    const [eid,pi]=k.split('|'); const r=S.results[k];
+    rows.push({ engine:ENG[eid].label, prompt:S.prompts[pi], score:r.score, named:!!r.mentioned,
+      rank:r.rank||null, linked:!!r.linked, tone:r.tone||0, error:r.error||null });
+  });
+  return { brand:S.brand, competitors:S.competitors, generated:new Date().toISOString(), rows };
+}
+function csv(){
+  const r = report();
+  return ['engine,prompt,score,named,rank,linked,tone'].concat(r.rows.map(x=>
+    [x.engine,'"'+String(x.prompt).replace(/"/g,'""')+'"',x.score,x.named,x.rank||'',x.linked,x.tone].join(','))).join('\n');
+}
+$('#copyJson').addEventListener('click', ()=>copyText(JSON.stringify(report(),null,2)));
+$('#copyCsv').addEventListener('click', ()=>copyText(csv()));
+$('#dlJson').addEventListener('click', ()=>{
+  try{
+    const blob = new Blob([JSON.stringify(report(),null,2)], {type:'application/json'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = 'cited-report.json'; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 2000); toast('Downloaded');
+  }catch(e){ copyText(JSON.stringify(report(),null,2)); toast('Download blocked here — copied instead'); }
+});
+$('#resetAll').addEventListener('click', ()=>{
+  S.results={}; renderMatrix(); renderResults(); toast('Results cleared');
+});
+$$('[data-copy]').forEach(b=> b.addEventListener('click', ()=> copyText($('#'+b.dataset.copy).textContent)));
+
+/* ---------- fix kit ---------- */
+function renderFixKit(){
+  const b = S.brand.name || 'Acme';
+  const d = S.brand.domain || 'acme.com';
+  const cat = ($('#gCat').value.trim() || 'category');
+  const icp = ($('#gIcp').value.trim() || 'your buyer');
+  const rival = S.competitors[0] || 'Competitor';
+  $('#outLlms').textContent =
+'# ' + b + '\n\n> One sentence a model can lift verbatim: ' + b + ' is a ' + cat + ' for ' + icp + '.\n\n' +
+'## What it is\n- Category: ' + cat + '\n- Best for: ' + icp + '\n- Not for: state the case where you are the wrong choice\n- Pricing: state the real starting number\n\n' +
+'## Pages worth quoting\n- https://' + d + '/pricing: plans, limits, overage maths\n' +
+'- https://' + d + '/compare/' + rival.toLowerCase().replace(/\s+/g,'-') + ': side-by-side table with numbers\n' +
+'- https://' + d + '/docs: setup time, integrations, API limits\n\n## Facts\n- Founded: \n- Integrations: \n- Compliance: \n- Support: ';
+
+  $('#outRobots').textContent =
+'User-agent: GPTBot\nAllow: /\n\nUser-agent: OAI-SearchBot\nAllow: /\n\nUser-agent: ChatGPT-User\nAllow: /\n\n' +
+'User-agent: ClaudeBot\nAllow: /\n\nUser-agent: Claude-SearchBot\nAllow: /\n\nUser-agent: PerplexityBot\nAllow: /\n\n' +
+'User-agent: Google-Extended\nAllow: /\n\nUser-agent: Applebot-Extended\nAllow: /\n\nSitemap: https://' + d + '/sitemap.xml';
+
+  $('#outSchema').textContent = JSON.stringify({
+    "@context":"https://schema.org", "@type":"FAQPage",
+    "mainEntity":[
+      {"@type":"Question","name":"What is "+b+"?","acceptedAnswer":{"@type":"Answer","text":b+" is a "+cat+" built for "+icp+"."}},
+      {"@type":"Question","name":"How much does "+b+" cost?","acceptedAnswer":{"@type":"Answer","text":"Plans start at $X per month; put the real number here."}},
+      {"@type":"Question","name":"Is "+b+" a good alternative to "+rival+"?","acceptedAnswer":{"@type":"Answer","text":"Name the two cases where you win and the one where "+rival+" wins."}},
+      {"@type":"Question","name":"Who should not use "+b+"?","acceptedAnswer":{"@type":"Answer","text":"Say it plainly. Models cite pages that disqualify themselves."}}
+    ]}, null, 2);
+
+  $('#outPage').textContent =
+'H1: ' + b + ' vs ' + rival + ' for ' + icp + '\n\n' +
+'First 150 words, in this order:\n  1. What the product is, in one sentence with the category noun in it.\n' +
+'  2. Who it is for, named as a buyer, not a persona.\n  3. The constraint it solves.\n  4. The recommendation rule: "pick ' + b + ' if X, pick ' + rival + ' if Y."\n\n' +
+'Then, in this order:\n  - Pricing table with real numbers, not "contact us"\n  - Feature matrix with limits, quotas and caps\n  - "Not a good fit if…" section\n  - One named expert quote with a title\n  - Setup time and migration steps\n  - Last updated date in the visible text\n\n' +
+'Rule of thumb from the 2026 citation studies: pages carrying 19+ discrete data points\nget cited roughly twice as often as adjective-heavy landing pages.';
+
+  $('#outProxy').textContent =
+'// Cloudflare Worker — your key stays server side.\n' +
+'export default {\n  async fetch(req, env) {\n' +
+'    if (req.method === "OPTIONS") return cors(new Response(null, {status:204}));\n' +
+'    const body = await req.text();\n' +
+'    const r = await fetch("https://api.openai.com/v1/chat/completions", {\n' +
+'      method: "POST",\n      headers: {\n        "Content-Type": "application/json",\n' +
+'        "Authorization": "Bearer " + env.OPENAI_KEY\n      },\n      body\n    });\n' +
+'    return cors(new Response(await r.text(), {status: r.status}));\n  }\n};\n' +
+'const cors = (res) => {\n  res.headers.set("Access-Control-Allow-Origin", "https://your-domain.com");\n' +
+'  res.headers.set("Access-Control-Allow-Headers", "content-type");\n  return res;\n};';
+}
+
+/* ---------- worked example ---------- */
+$('#demoBtn').addEventListener('click', ()=>{
+  $('#bName').value='Metronome'; $('#bDomain').value='metronome.com';
+  $('#bAlias').value='Metronome Billing';
+  $('#bComp').value='Stripe Billing, Chargebee, Orb, Lago';
+  $('#gCat').value='usage-based billing tool'; $('#gIcp').value='a seed-stage SaaS on Stripe';
+  $('#promptBox').value=['best usage-based billing tool for a seed-stage SaaS on Stripe',
+    'alternatives to Chargebee for a 2-person finance team',
+    'cheapest metered billing platform for an early-stage startup'].join('\n');
+  readSetup();
+  const demo = [
+    ['chatgpt',0,'For a seed-stage SaaS already on Stripe, the usual shortlist looks like this:\n\n1. **Stripe Billing** — the least friction if you are already on Stripe. Metered usage is supported natively.\n2. **Orb** — purpose-built for usage-based pricing, strong event ingestion. See orb.com for pricing.\n3. **Lago** — open source, great if you want to self-host (lago.dev).\n4. **Metronome** — excellent for complex metered contracts, though it is usually aimed at later-stage teams.\n\nIf you want the fastest path, start with Stripe Billing and move when your pricing model outgrows it.'],
+    ['claude',0,'A few good options, depending on how complicated your pricing is:\n\n- **Stripe Billing**: simplest if Stripe already handles payments.\n- **Orb**: built for usage-based billing from the ground up.\n- **Chargebee**: more subscription-oriented, heavier for pure metering.\n\nFor a seed-stage team I would start with Stripe Billing and revisit at Series A.'],
+    ['perplexity',1,'Teams moving off Chargebee with a small finance function usually look at:\n\n1. **Metronome** — strong metering, good audit trail, used by teams with usage-based contracts (metronome.com)\n2. **Orb** — similar positioning, developer-first\n3. **Stripe Billing** — cheapest to run if you are already on Stripe\n\nMetronome is often recommended when invoicing logic is the bottleneck rather than payments.\n\nSources: https://metronome.com/pricing https://www.g2.com/categories/billing https://news.ycombinator.com/item?id=1']
+  ];
+  demo.forEach(([eid,pi,txt])=>{ S.results[eid+'|'+pi] = analyse(txt); });
+  renderMatrix(); renderResults();
+  document.getElementById('grid').scrollIntoView({behavior:'smooth'});
+  toast('Example loaded — the data is illustrative, not a real audit');
+});
+
+/* ---------- 3D citation field ---------- */
+(function viz(){
+  const canvas = $('#stage');
+  if(!window.THREE || !canvas) return;
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
+  camera.position.set(0, 2.6, 7.4); camera.lookAt(0,0,0);
+  let renderer;
+  try{ renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:true}); }catch(e){ return; }
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
+
+  const root = new THREE.Group(); scene.add(root);
+  const css = k => getComputedStyle(document.documentElement).getPropertyValue(k).trim();
+  let C = {};
+  function readColors(){
+    C = { signal:new THREE.Color(css('--signal')), amber:new THREE.Color(css('--amber')),
+          miss:new THREE.Color(css('--miss')), idle:new THREE.Color(css('--line-2')),
+          ink:new THREE.Color(css('--ink-3')) };
+  }
+  readColors();
+
+  const core = new THREE.Mesh(new THREE.IcosahedronGeometry(0.42, 1),
+    new THREE.MeshBasicMaterial({color:C.signal, wireframe:true, transparent:true, opacity:.9}));
+  root.add(core);
+  const halo = new THREE.Mesh(new THREE.SphereGeometry(0.2, 16, 16), new THREE.MeshBasicMaterial({color:C.signal}));
+  root.add(halo);
+
+  let dots = [], links = [], ringMeshes = [];
+  function build(){
+    dots.forEach(d=>root.remove(d.mesh)); links.forEach(l=>root.remove(l)); ringMeshes.forEach(r=>root.remove(r));
+    dots=[]; links=[]; ringMeshes=[];
+    const prompts = Math.max(6, S.prompts.length||8);
+    ENGINES.forEach((e, ei)=>{
+      const radius = 1.5 + ei*0.62;
+      const ring = new THREE.Mesh(new THREE.RingGeometry(radius-0.004, radius+0.004, 128),
+        new THREE.MeshBasicMaterial({color:C.ink, transparent:true, opacity:.28, side:THREE.DoubleSide}));
+      ring.rotation.x = -Math.PI/2 + 0.12*Math.sin(ei);
+      ring.rotation.z = ei*0.26;
+      root.add(ring); ringMeshes.push(ring);
+      for(let i=0;i<prompts;i++){
+        const a = (i/prompts)*Math.PI*2 + ei*0.5;
+        const v = new THREE.Vector3(Math.cos(a)*radius, 0, Math.sin(a)*radius);
+        v.applyAxisAngle(new THREE.Vector3(1,0,0), 0.12*Math.sin(ei));
+        v.applyAxisAngle(new THREE.Vector3(0,0,1), ei*0.26);
+        const m = new THREE.Mesh(new THREE.SphereGeometry(0.055, 10, 10),
+          new THREE.MeshBasicMaterial({color:C.idle, transparent:true, opacity:.55}));
+        m.position.copy(v); root.add(m);
+        dots.push({mesh:m, engine:e.id, idx:i, base:v.clone()});
+      }
+    });
+  }
+  function sync(){
+    let cited = 0;
+    dots.forEach(d=>{
+      const r = S.results[d.engine+'|'+d.idx];
+      let col = C.idle, op = .5, scale = 1;
+      if(r && !r.error){
+        if(r.score>=60){ col=C.signal; op=1; scale=1.7; cited++; }
+        else if(r.score>0){ col=C.amber; op=.95; scale=1.3; }
+        else { col=C.miss; op=.85; scale=1.1; }
+      }
+      d.mesh.material.color.copy(col); d.mesh.material.opacity = op;
+      d.mesh.scale.setScalar(scale);
+      d.cited = !!(r && !r.error && r.score>=60);
+    });
+    links.forEach(l=>root.remove(l)); links=[];
+    dots.filter(d=>d.cited).forEach(d=>{
+      const g = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0), d.mesh.position.clone()]);
+      const l = new THREE.Line(g, new THREE.LineBasicMaterial({color:C.signal, transparent:true, opacity:.45}));
+      root.add(l); links.push(l);
+    });
+    const vc = $('#vizCount'); if(vc) vc.textContent = cited;
+  }
+  function recolor(){ readColors(); core.material.color.copy(C.signal); halo.material.color.copy(C.signal);
+    ringMeshes.forEach(r=>r.material.color.copy(C.ink)); sync(); }
+
+  let drag=false, px=0, py=0, rotY=0.5, rotX=0.18, vel=0.0016;
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  canvas.addEventListener('pointerdown', e=>{ drag=true; px=e.clientX; py=e.clientY; canvas.setPointerCapture(e.pointerId); });
+  canvas.addEventListener('pointermove', e=>{ if(!drag) return;
+    rotY += (e.clientX-px)*0.006; rotX = Math.max(-0.7, Math.min(1.1, rotX + (e.clientY-py)*0.004));
+    px=e.clientX; py=e.clientY; });
+  ['pointerup','pointercancel','pointerleave'].forEach(ev=>canvas.addEventListener(ev, ()=>drag=false));
+
+  function resize(){
+    const r = canvas.parentElement.getBoundingClientRect();
+    renderer.setSize(r.width, r.height, false);
+    camera.aspect = r.width/Math.max(1,r.height); camera.updateProjectionMatrix();
+  }
+  window.addEventListener('resize', resize);
+  let t=0;
+  function loop(){
+    requestAnimationFrame(loop);
+    if(!drag && !reduced) rotY += vel;
+    t += 0.01;
+    root.rotation.y = rotY; root.rotation.x = rotX;
+    core.rotation.y -= 0.004; core.rotation.x += 0.002;
+    halo.scale.setScalar(1 + Math.sin(t)*0.06);
+    renderer.render(scene, camera);
+  }
+  build(); sync(); resize(); loop();
+  window.__viz = { sync:()=>{ build(); sync(); }, recolor };
+})();
+
+/* ---------- boot ---------- */
+loadConfig();
+$('#bName').value = S.brand.name||''; $('#bDomain').value = S.brand.domain||'';
+$('#bAlias').value = (S.brand.aliases||[]).join(', '); $('#bComp').value = (S.competitors||[]).join(', ');
+$('#promptBox').value = (S.prompts||[]).join('\n');
+$('#keyPolicy').value = S.policy; $('#runs').value = String(S.runs);
+loadKeys(); renderEngineCards(); renderMatrix(); renderResults(); renderFixKit(); setMode('manual');
+['#gCat','#gIcp','#gStack','#gCons'].forEach(s=>$(s).addEventListener('input', debounce(renderFixKit,300)));
+})();
+</script>
+</body>
+</html>
